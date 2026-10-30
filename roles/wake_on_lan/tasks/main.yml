@@ -1,0 +1,32 @@
+---
+- name: Install ethtool
+  ansible.builtin.apt:
+    name: ethtool
+    state: present
+
+- name: Install Wake-on-LAN service for subsequent boots
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/workstation-wol.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Enable Wake-on-LAN on workstation Ethernet
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/ethtool -s {{ workstation_interface }} wol g
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  register: wol_service
+
+- name: Enable Wake-on-LAN service without changing current networking
+  ansible.builtin.systemd:
+    name: workstation-wol.service
+    daemon_reload: "{{ wol_service.changed }}"
+    enabled: true

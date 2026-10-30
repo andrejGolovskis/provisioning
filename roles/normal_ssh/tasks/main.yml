@@ -1,0 +1,38 @@
+---
+- name: Install OpenSSH server
+  ansible.builtin.apt:
+    name: openssh-server
+    state: present
+    update_cache: true
+
+- name: Ensure user SSH directory exists
+  ansible.builtin.file:
+    path: "/home/{{ workstation_user }}/.ssh"
+    state: directory
+    owner: "{{ workstation_user }}"
+    group: "{{ workstation_user }}"
+    mode: '0700'
+
+- name: Add phone admin public key without removing existing keys
+  ansible.builtin.lineinfile:
+    path: "/home/{{ workstation_user }}/.ssh/authorized_keys"
+    line: "{{ lookup('ansible.builtin.file', phone_public_keys_dir + '/baza-admin-phone.pub') }}"
+    create: true
+    owner: "{{ workstation_user }}"
+    group: "{{ workstation_user }}"
+    mode: '0600'
+
+- name: Permit only passwordless systemctl poweroff
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/workstation-phone-poweroff
+    content: "{{ workstation_user }} ALL=(root) NOPASSWD: /bin/systemctl poweroff\n"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Enable normal SSH
+  ansible.builtin.service:
+    name: ssh
+    enabled: true
+    state: started

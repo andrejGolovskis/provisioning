@@ -338,6 +338,12 @@ echo "JetBrains Toolbox installed in $DIR"
 After install start inside DIR the jetbrains file
 
 ** Hardware
+*** OpenCode web server
+See [[file:docs/opencode-server.md][OpenCode web server]]; run ~just configure-opencode~ to enable it at boot.
+*** Remote wake, unlock and shutdown
+The workstation-specific Ansible playbook and recovery instructions are in
+[[file:docs/workstation-remote.md][docs/workstation-remote.md]]. Review them before applying the playbook;
+it does not reboot or alter the current network configuration.
 *** Xencelabs
 Install drivers: https://www.xencelabs.com/us/support/download-drivers
 

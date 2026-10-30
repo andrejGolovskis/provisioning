@@ -1,0 +1,5 @@
+---
+- name: Restart OpenCode
+  ansible.builtin.systemd:
+    name: opencode-web.service
+    state: restarted

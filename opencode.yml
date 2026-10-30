@@ -1,0 +1,11 @@
+---
+- name: Configure OpenCode web server
+  hosts: workstation
+  become: true
+  vars_prompt:
+    - name: opencode_password
+      prompt: OpenCode server password
+      private: true
+      confirm: true
+  roles:
+    - opencode_server

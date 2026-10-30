@@ -1,0 +1,35 @@
+---
+- name: Configure workstation remote access
+  hosts: workstation
+  become: true
+  vars:
+    phone_public_keys_dir: "{{ playbook_dir }}/public_keys"
+    workstation_user: ang
+    workstation_interface: enxd0c1b5220a54
+    workstation_address: 192.168.100.50
+    workstation_gateway: 192.168.100.1
+  pre_tasks:
+    - name: Check boot filesystem capacity before package installation
+      ansible.builtin.command: df -Pk /boot
+      register: boot_space
+      changed_when: false
+    - name: Require at least 150 MiB free in boot
+      ansible.builtin.assert:
+        that: (boot_space.stdout_lines[-1].split()[3] | int) >= 153600
+        fail_msg: Check /boot space and free it safely before continuing.
+    - name: Check phone public keys exist
+      ansible.builtin.stat:
+        path: "{{ phone_public_keys_dir }}/{{ item }}"
+      loop:
+        - baza-admin-phone.pub
+        - baza-dropbear-phone.pub
+      register: phone_keys
+    - name: Require both phone public keys
+      ansible.builtin.assert:
+        that: item.stat.exists
+      loop: "{{ phone_keys.results }}"
+  roles:
+    - static_network
+    - normal_ssh
+    - initramfs_ssh
+    - wake_on_lan

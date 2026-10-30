@@ -1,0 +1,44 @@
+---
+- name: Install initramfs SSH and encryption support
+  ansible.builtin.apt:
+    name:
+      - dropbear-initramfs
+      - cryptsetup-initramfs
+    state: present
+
+- name: Add phone unlock key without removing existing keys
+  ansible.builtin.lineinfile:
+    path: /etc/dropbear/initramfs/authorized_keys
+    line: "{{ lookup('ansible.builtin.file', phone_public_keys_dir + '/baza-dropbear-phone.pub') }}"
+    create: true
+    owner: root
+    group: root
+    mode: '0600'
+  register: unlock_key
+
+- name: Configure initramfs static networking
+  ansible.builtin.copy:
+    dest: /etc/initramfs-tools/conf.d/workstation-network
+    content: |
+      IP={{ workstation_address }}::{{ workstation_gateway }}:255.255.255.0:uzel-01:{{ workstation_interface }}:none
+      DEVICE={{ workstation_interface }}
+    owner: root
+    group: root
+    mode: '0644'
+  register: initramfs_network
+
+- name: Include USB Ethernet driver in initramfs
+  ansible.builtin.lineinfile:
+    path: /etc/initramfs-tools/modules
+    line: r8152
+  register: initramfs_driver
+
+- name: Set initramfs SSH port
+  ansible.builtin.lineinfile:
+    path: /etc/dropbear/initramfs/dropbear.conf
+    regexp: '^DROPBEAR_OPTIONS='
+    line: 'DROPBEAR_OPTIONS="-p 22"'
+  register: dropbear_options
+
+- name: Rebuild running kernel initramfs (also retries previously failed rebuilds)
+  ansible.builtin.command: update-initramfs -u -k {{ ansible_kernel }}

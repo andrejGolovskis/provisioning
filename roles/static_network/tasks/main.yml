@@ -1,0 +1,11 @@
+---
+- name: Configure static IPv4 without restarting the interface
+  ansible.builtin.replace:
+    path: /etc/network/interfaces
+    regexp: '(?m)^iface {{ workstation_interface }} inet (?:dhcp|static)\n(?:[ \t]+(?:address|netmask|gateway) .*\n)*'
+    replace: |
+      iface {{ workstation_interface }} inet static
+          address {{ workstation_address }}
+          netmask 255.255.255.0
+          gateway {{ workstation_gateway }}
+    backup: true

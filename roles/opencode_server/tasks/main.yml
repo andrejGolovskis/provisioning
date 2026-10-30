@@ -1,0 +1,69 @@
+---
+- name: Check installed OpenCode executable
+  ansible.builtin.stat:
+    path: /home/ang/.opencode/bin/opencode
+  register: opencode_binary
+
+- name: Require installed OpenCode
+  ansible.builtin.assert:
+    that: opencode_binary.stat.exists
+
+- name: Require a nonempty single-line password
+  ansible.builtin.assert:
+    that:
+      - opencode_password | length > 0
+      - "'\n' not in opencode_password"
+      - "'\r' not in opencode_password"
+  no_log: true
+
+- name: Create service configuration directory
+  ansible.builtin.file:
+    path: /etc/opencode
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Store server password outside the repository
+  ansible.builtin.copy:
+    dest: /etc/opencode/server.env
+    content: "OPENCODE_PASSWORD={{ opencode_password | to_json(ensure_ascii=False) }}\n"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  notify: Restart OpenCode
+
+- name: Install systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/opencode-web.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=OpenCode API and web server
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=ang
+      Group=ang
+      WorkingDirectory=/home/ang/Workspace
+      Environment=HOME=/home/ang
+      Environment=PATH=/home/ang/.opencode/bin:/home/ang/.local/bin:/usr/local/bin:/usr/bin:/bin
+      EnvironmentFile=/etc/opencode/server.env
+      ExecStart=/home/ang/.opencode/bin/opencode serve --hostname 0.0.0.0 --port 4096
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart OpenCode
+
+- name: Enable and start OpenCode web server
+  ansible.builtin.systemd:
+    name: opencode-web.service
+    daemon_reload: true
+    enabled: true
+    state: started
