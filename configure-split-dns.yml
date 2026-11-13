@@ -1,0 +1,12 @@
+---
+- name: Configure workstation split DNS
+  hosts: workstation
+  become: true
+  vars:
+    split_dns_interface: enxd0c1b5220a54
+    split_dns_router: 192.168.100.1
+    split_dns_domains:
+      - baza.lan
+      - protonvpn.com
+  roles:
+    - split_dns

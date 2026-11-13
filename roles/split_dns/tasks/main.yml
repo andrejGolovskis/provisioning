@@ -1,0 +1,93 @@
+---
+- name: Install systemd-resolved
+  ansible.builtin.apt:
+    name: systemd-resolved
+    state: present
+    update_cache: true
+
+- name: Create resolved configuration directory
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    mode: '0755'
+
+- name: Configure CleanBrowsing as the default resolver
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/cleanbrowsing.conf
+    content: |
+      [Resolve]
+      DNS=185.228.168.168 185.228.169.168 2a0d:2a00:1:: 2a0d:2a00:2::
+      Domains=~.
+    owner: root
+    group: root
+    mode: '0644'
+  register: split_dns_configuration
+
+- name: Install local DNS routing helper
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/workstation-split-dns
+    content: |
+      #!/bin/sh
+      set -eu
+      /usr/bin/resolvectl dns {{ split_dns_interface }} {{ split_dns_router }}
+      /usr/bin/resolvectl domain {{ split_dns_interface }} {% for domain in split_dns_domains %}'~{{ domain }}' {% endfor %}
+      /usr/bin/resolvectl default-route {{ split_dns_interface }} no
+      /usr/bin/resolvectl flush-caches
+    owner: root
+    group: root
+    mode: '0755'
+  register: split_dns_helper
+
+- name: Restore local DNS routing when the interface comes up
+  ansible.builtin.copy:
+    dest: /etc/network/if-up.d/workstation-split-dns
+    content: |
+      #!/bin/sh
+      [ "$IFACE" = "{{ split_dns_interface }}" ] || exit 0
+      systemctl is-active --quiet systemd-resolved.service || exit 0
+      /usr/local/sbin/workstation-split-dns
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install split DNS startup service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/workstation-split-dns.service
+    content: |
+      [Unit]
+      Description=Route Baza DNS queries to the local router
+      After=network-online.target systemd-resolved.service
+      Wants=network-online.target
+      Requires=systemd-resolved.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/workstation-split-dns
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+    owner: root
+    group: root
+    mode: '0644'
+  register: split_dns_service
+
+- name: Enable and start systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved.service
+    enabled: true
+    state: "{{ 'restarted' if split_dns_configuration.changed else 'started' }}"
+
+- name: Use the systemd-resolved stub resolver
+  ansible.builtin.file:
+    src: /run/systemd/resolve/stub-resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true
+
+- name: Enable and apply local DNS routing
+  ansible.builtin.systemd:
+    name: workstation-split-dns.service
+    daemon_reload: "{{ split_dns_service.changed }}"
+    enabled: true
+    state: restarted

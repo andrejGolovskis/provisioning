@@ -1,0 +1,61 @@
+---
+- name: Install ProtonVPN
+  hosts: workstation
+  become: true
+  vars:
+    protonvpn_release_version: "1.0.10"
+    protonvpn_release_url: >-
+      https://repo.protonvpn.com/debian/dists/stable/main/binary-all/protonvpn-stable-release_{{ protonvpn_release_version }}_all.deb
+    protonvpn_release_checksum: >-
+      sha256:c8a9fffb4ebdd63db08ce7f11c9b0ac394064ae6a210feb9ab63a0f7d8d060a7
+    protonvpn_interface: enxd0c1b5220a54
+  tasks:
+    - name: Verify ProtonVPN platform support
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_architecture == "x86_64"
+        fail_msg: ProtonVPN's official repository targets Debian on x86_64.
+
+    - name: Check NetworkManager device state
+      ansible.builtin.command: nmcli -t -f DEVICE,STATE device status
+      register: protonvpn_nm_devices
+      changed_when: false
+      failed_when: false
+
+    - name: Warn when the primary interface is unmanaged
+      ansible.builtin.debug:
+        msg: >-
+          {{ protonvpn_interface }} is unmanaged by NetworkManager. The ProtonVPN
+          app may fail to activate a connection until NetworkManager manages it.
+      when: >-
+        protonvpn_nm_devices.rc == 0 and
+        (protonvpn_nm_devices.stdout_lines |
+         select('match', '^' ~ protonvpn_interface ~ ':unmanaged$') |
+         list | length > 0)
+
+    - name: Download ProtonVPN repository release package
+      ansible.builtin.get_url:
+        url: "{{ protonvpn_release_url }}"
+        dest: "/tmp/protonvpn-stable-release_{{ protonvpn_release_version }}_all.deb"
+        checksum: "{{ protonvpn_release_checksum }}"
+        mode: '0644'
+
+    - name: Install ProtonVPN repository
+      ansible.builtin.apt:
+        deb: "/tmp/protonvpn-stable-release_{{ protonvpn_release_version }}_all.deb"
+        state: present
+
+    - name: Refresh APT cache after adding the ProtonVPN repository
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install ProtonVPN desktop application and CLI
+      ansible.builtin.apt:
+        name: proton-vpn-gnome-desktop
+        state: present
+
+    - name: Remove downloaded repository package
+      ansible.builtin.file:
+        path: "/tmp/protonvpn-stable-release_{{ protonvpn_release_version }}_all.deb"
+        state: absent

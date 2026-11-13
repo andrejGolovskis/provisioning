@@ -46,9 +46,12 @@ Host workstation-admin
 | Wake | `wol d0:c1:b5:22:0a:54` |
 | Unlock | `ssh -t workstation-unlock cryptroot-unlock` |
 | Shut down | `ssh -t workstation-admin sudo -n /bin/systemctl poweroff` |
+| Reboot into Windows once | `ssh -t workstation-admin 'sudo -n /usr/sbin/grub-reboot osprober-efi-3130-B660 && sudo -n /bin/systemctl reboot'` |
 
 For Termux:Widget, put each command in an executable script in `~/.shortcuts/`.
 Enter the LUKS passphrase interactively; never save it in a script.
+Windows selection uses the current GRUB entry ID; update it in the sudoers role
+and shortcut if the Windows boot partition changes.
 
 ## First test
 
