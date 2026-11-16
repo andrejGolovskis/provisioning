@@ -330,10 +330,13 @@ tar -xzf /tmp/jetbrains-toolbox.tar.gz -C /opt
 # Find extracted folder (e.g. /opt/jetbrains-toolbox-3.0.1.59888)
 DIR="$(ls -d /opt/jetbrains-toolbox-* | sort -V | tail -n 1)"
 
+# Stable symlink so desktop entries survive version upgrades
+ln -sfn "$DIR" /opt/jetbrains-toolbox
+
 # Cleanup archive
 rm -f /tmp/jetbrains-toolbox.tar.gz
 
-echo "JetBrains Toolbox installed in $DIR"
+echo "JetBrains Toolbox installed in $DIR (stable path: /opt/jetbrains-toolbox)"
 #+end_src
 After install start inside DIR the jetbrains file
 
@@ -348,6 +351,14 @@ it does not reboot or alter the current network configuration.
 Install drivers: https://www.xencelabs.com/us/support/download-drivers
 
 * Gnome
+** Automatic suspend
+Run this as the desktop user to keep the workstation available on AC power.
+The screen blank setting is separate.
+
+#+begin_src shell :results output silent :cache no :tangle no
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+#+end_src
+
 ** General
 #+begin_src shell :results output silent :cache no :tangle no
 
