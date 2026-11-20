@@ -1,0 +1,8 @@
+---
+- name: Install Docker Engine
+  hosts: workstation
+  become: true
+  vars:
+    docker_user: ang
+  roles:
+    - docker

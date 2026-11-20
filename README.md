@@ -7,6 +7,9 @@ other setup blocks are run separately as needed.
 See [Termux SSH](docs/termux-ssh.md) for connecting to an Android phone from a PC.
 See [ProtonVPN](docs/protonvpn.md) for the workstation VPN installation.
 
+Run `just install-docker` to install Docker Engine from the official
+repository. This replaces the manual Docker block in `system.org`.
+
 Run `just configure-split-dns` to route `baza.lan` lookups to the home router
 while using CleanBrowsing for other DNS queries. This installs systemd-resolved
 and replaces `/etc/resolv.conf` with its local resolver stub.
